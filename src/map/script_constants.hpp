@@ -5512,6 +5512,7 @@
 	export_constant(IG_SEALED_SCROLL);
 	export_constant(IG_SQUAD_PRIZE1);
 	export_constant(IG_SQUAD_PRIZE2);
+	export_constant(IG_ODIN_RELIC);
 
 	/* unit stop walking */
 	export_constant(USW_NONE);

@@ -767,7 +767,8 @@ enum e_random_item_group {
 	IG_SEALED_SCROLL,
 	IG_SQUAD_PRIZE1,
 	IG_SQUAD_PRIZE2,
-
+  	IG_ODIN_RELIC,
+  
 	IG_MAX,
 };
 
