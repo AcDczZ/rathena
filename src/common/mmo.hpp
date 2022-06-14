@@ -83,7 +83,7 @@ typedef uint32 t_itemid;
 #define MAX_BANK_ZENY SINT32_MAX ///Max zeny in Bank
 #define MAX_FAME 1000000000 ///Max fame points
 #define MAX_CART 100 ///Maximum item in cart
-#define MAX_SKILL 1612 ///Maximum skill can be hold by Player, Homunculus, & Mercenary (skill list) AND skill_db limit
+#define MAX_SKILL 1469 ///Maximum skill can be hold by Player, Homunculus, & Mercenary (skill list) AND skill_db limit
 #define DEFAULT_WALK_SPEED 150 ///Default walk speed
 #define MIN_WALK_SPEED 20 ///Min walk speed
 #define MAX_WALK_SPEED 1000 ///Max walk speed
@@ -111,22 +111,12 @@ typedef uint32 t_itemid;
 	#define MAX_BARTER_REQUIREMENTS 5
 #endif
 
-enum e_enchantgrade : uint16{
-	ENCHANTGRADE_NONE = 0,
-	ENCHANTGRADE_D,
-	ENCHANTGRADE_C,
-	ENCHANTGRADE_B,
-	ENCHANTGRADE_A
-};
-
 #ifdef RENEWAL
 	#define MAX_WEAPON_LEVEL 5
 	#define MAX_ARMOR_LEVEL 2
-	#define MAX_ENCHANTGRADE ENCHANTGRADE_A
 #else
 	#define MAX_WEAPON_LEVEL 4
 	#define MAX_ARMOR_LEVEL 1
-	#define MAX_ENCHANTGRADE ENCHANTGRADE_NONE
 #endif
 
 // for produce
