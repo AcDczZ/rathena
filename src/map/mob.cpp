@@ -48,6 +48,7 @@ using namespace rathena;
 #define IDLE_SKILL_INTERVAL 10	//Active idle skills should be triggered every 1 second (1000/MIN_MOBTHINKTIME)
 
 const t_tick MOB_MAX_DELAY = 24 * 3600 * 1000;
+#define MAX_MINCHASE 30	//Max minimum chase value to use for mobs.
 #define RUDE_ATTACKED_COUNT 1	//After how many rude-attacks should the skill be used?
 
 // On official servers, monsters will only seek targets that are closer to walk to than their
@@ -235,7 +236,7 @@ void mvptomb_destroy(struct mob_data *md) {
 	struct npc_data *nd;
 
 	if ( (nd = map_id2nd(md->tomb_nid)) ) {
-		int i;
+		int16 i;
 		struct map_data *mapdata = map_getmapdata(nd->bl.m);
 
 		clif_clearunit_area(&nd->bl,CLR_OUTSIGHT);
@@ -962,30 +963,29 @@ int mob_spawn_bg(const char* mapname, int16 x, int16 y, const char* mobname, int
 }
 
 /*==========================================
- * Returns true if a mob is currently chasing something
- * based on its skillstate.
- * Chase states: MSS_LOOT, MSS_RUSH, MSS_FOLLOW
+ * Reachability to a Specification ID existence place
+ * state indicates type of 'seek' mob should do:
+ * - MSS_LOOT: Looking for item, path must be easy.
+ * - MSS_RUSH: Chasing attacking player, path is complex
+ * - MSS_FOLLOW: Initiative/support seek, path is complex
  *------------------------------------------*/
-bool mob_is_chasing(int state)
+int mob_can_reach(struct mob_data *md,struct block_list *bl,int range, int state)
 {
-	switch (state) {
-		case MSS_LOOT:
-		case MSS_RUSH:
-		case MSS_FOLLOW:
-			return true;
-	}
-	return false;
-}
+	int easy = 0;
 
-/*==========================================
- * Checks if a monster can reach a target by walking
- * Range: Maximum number of cells to be walked
- *------------------------------------------*/
-int mob_can_reach(struct mob_data *md,struct block_list *bl,int range)
-{
 	nullpo_ret(md);
 	nullpo_ret(bl);
-	return unit_can_reach_bl(&md->bl, bl, range, 0, NULL, NULL);
+	switch (state) {
+		case MSS_RUSH:
+		case MSS_FOLLOW:
+			easy = 0; //(battle_config.mob_ai&0x1?0:1);
+			break;
+		case MSS_LOOT:
+		default:
+			easy = 1;
+			break;
+	}
+	return unit_can_reach_bl(&md->bl, bl, range, easy, NULL, NULL);
 }
 
 /*==========================================
@@ -1004,11 +1004,11 @@ int mob_linksearch(struct block_list *bl,va_list ap)
 	target = va_arg(ap, struct block_list *);
 	tick=va_arg(ap, t_tick);
 
-	if (md->mob_id == mob_id && status_has_mode(&md->status,MD_ASSIST) && DIFF_TICK(tick, md->last_linktime) >= MIN_MOBLINKTIME
+	if (md->mob_id == mob_id && status_has_mode(&md->status,MD_ASSIST) && DIFF_TICK(md->last_linktime, tick) < MIN_MOBLINKTIME
 		&& !md->target_id)
 	{
 		md->last_linktime = tick;
-		if( mob_can_reach(md,target,md->db->range2) ){	// Reachability judging
+		if( mob_can_reach(md,target,md->db->range2, MSS_FOLLOW) ){	// Reachability judging
 			md->target_id = target->id;
 			md->min_chase=md->db->range3;
 			return 1;
@@ -1154,7 +1154,6 @@ int mob_spawn (struct mob_data *md)
 
 	md->state.aggressive = status_has_mode(&md->status,MD_ANGRY)?1:0;
 	md->state.skillstate = MSS_IDLE;
-	md->ud.state.blockedmove = false;
 	md->next_walktime = tick+rnd()%1000+MIN_RANDOMWALKTIME;
 	md->last_linktime = tick;
 	md->dmgtick = tick - 5000;
@@ -1247,7 +1246,9 @@ int mob_target(struct mob_data *md,struct block_list *bl,int dist)
 	// When an angry monster is provoked, it will switch to retaliate AI
 	if (md->state.provoke_flag && md->state.aggressive)
 		md->state.aggressive = 0;
-	md->min_chase = cap_value(dist + md->db->range3 - md->status.rhw.range, md->db->range3, MAX_MINCHASE);
+	md->min_chase=dist+md->db->range3;
+	if(md->min_chase>MAX_MINCHASE)
+		md->min_chase=MAX_MINCHASE;
 	return 0;
 }
 
@@ -1303,7 +1304,9 @@ static int mob_ai_sub_hard_activesearch(struct block_list *bl,va_list ap)
 #endif
 			(*target) = bl;
 			md->target_id=bl->id;
-			md->min_chase = cap_value(dist + md->db->range3 - md->status.rhw.range, md->db->range3, MAX_MINCHASE);
+			md->min_chase= dist + md->db->range3;
+			if(md->min_chase>MAX_MINCHASE)
+				md->min_chase=MAX_MINCHASE;
 			return 1;
 		}
 		break;
@@ -1368,7 +1371,7 @@ static int mob_ai_sub_hard_lootsearch(struct block_list *bl,va_list ap)
 	target = va_arg(ap,struct block_list**);
 
 	dist = distance_bl(&md->bl, bl);
-	if (mob_can_reach(md, bl, md->db->range3) && (
+	if (mob_can_reach(md,bl,dist+1, MSS_LOOT) && (
 		(*target) == nullptr ||
 		(battle_config.monster_loot_search_type && md->target_id > bl->id) ||
 		(!battle_config.monster_loot_search_type && !check_distance_bl(&md->bl, *target, dist)) // New target closer than previous one.
@@ -1467,7 +1470,7 @@ static int mob_ai_sub_hard_slavemob(struct mob_data *md,t_tick tick)
 	}
 
 	//Avoid attempting to lock the master's target too often to avoid unnecessary overload. [Skotlex]
-	if (DIFF_TICK(tick, md->last_linktime) >= MIN_MOBLINKTIME && !md->target_id)
+	if (DIFF_TICK(md->last_linktime, tick) < MIN_MOBLINKTIME && !md->target_id)
   	{
 		struct unit_data *ud = unit_bl2ud(bl);
 		md->last_linktime = tick;
@@ -1486,7 +1489,9 @@ static int mob_ai_sub_hard_slavemob(struct mob_data *md,t_tick tick)
 			}
 			if (tbl && status_check_skilluse(&md->bl, tbl, 0, 0)) {
 				md->target_id=tbl->id;
-				md->min_chase = cap_value(distance_bl(&md->bl, tbl) + md->db->range3 - md->status.rhw.range, md->db->range3, MAX_MINCHASE);
+				md->min_chase=md->db->range3+distance_bl(&md->bl, tbl);
+				if(md->min_chase>MAX_MINCHASE)
+					md->min_chase=MAX_MINCHASE;
 				return 1;
 			}
 		}
@@ -1503,9 +1508,6 @@ static int mob_ai_sub_hard_slavemob(struct mob_data *md,t_tick tick)
 int mob_unlocktarget(struct mob_data *md, t_tick tick)
 {
 	nullpo_ret(md);
-
-	// Remember if the monster was in a "chasing" state
-	bool chasestate = mob_is_chasing(md->state.skillstate);
 
 	switch (md->state.skillstate) {
 	case MSS_WALK:
@@ -1547,7 +1549,7 @@ int mob_unlocktarget(struct mob_data *md, t_tick tick)
 	}
 	
 	if (!md->ud.state.ignore_cell_stack_limit && battle_config.official_cell_stack_limit > 0
-		&& (chasestate || battle_config.mob_ai & 0x8)
+		&& (md->min_chase == md->db->range3 || battle_config.mob_ai & 0x8)
 		&& map_count_oncell(md->bl.m, md->bl.x, md->bl.y, BL_CHAR | BL_NPC, 1) > battle_config.official_cell_stack_limit) {
 		unit_walktoxy(&md->bl, md->bl.x, md->bl.y, 8);
 	}
@@ -1687,10 +1689,6 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 	if(md->bl.prev == nullptr || md->status.hp == 0)
 		return false;
 
-	// Monsters force-walked by script commands should not be searching for targets.
-	if (md->ud.state.force_walk)
-		return false;
-
 	if (DIFF_TICK(tick, md->last_thinktime) < MIN_MOBTHINKTIME)
 		return false;
 
@@ -1700,7 +1698,8 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 		return false;
 
 	// Abnormalities
-	if(( md->sc.opt1 && md->sc.opt1 != OPT1_STONEWAIT && md->sc.opt1 != OPT1_BURNING ) || status_db.hasSCF(&md->sc, SCF_MOBLOSETARGET)) {//Should reset targets.
+	if(( md->sc.opt1 > 0 && md->sc.opt1 != OPT1_STONEWAIT && md->sc.opt1 != OPT1_BURNING )
+	   || md->sc.data[SC_BLADESTOP] || md->sc.data[SC__MANHOLE] || md->sc.data[SC_CURSEDCIRCLE_TARGET]) {//Should reset targets.
 		md->target_id = md->attacked_id = md->norm_attacked_id = 0;
 		return false;
 	}
@@ -1745,7 +1744,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 						|| md->sc.data[SC__MANHOLE] // Not yet confirmed if boss will teleport once it can't reach target.
 						|| md->walktoxy_fail_count > 0)
 					)
-					|| !mob_can_reach(md, tbl, md->min_chase)
+					|| !mob_can_reach(md, tbl, md->min_chase, MSS_RUSH)
 				)
 			&&  md->state.attacked_count++ >= RUDE_ATTACKED_COUNT
 			&&  !mobskill_use(md, tick, MSC_RUDEATTACKED) // If can't rude Attack
@@ -1770,7 +1769,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 						|| md->sc.data[SC__MANHOLE] // Not yet confirmed if boss will teleport once it can't reach target.
 						|| md->walktoxy_fail_count > 0)
 					)
-					|| !mob_can_reach(md, abl, dist+md->db->range3)
+					|| !mob_can_reach(md, abl, dist+md->db->range3, MSS_RUSH)
 				   )
 				) )
 			{ // Rude attacked
@@ -1795,7 +1794,9 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 				md->target_id = md->attacked_id; // set target
 				if (md->state.attacked_count)
 					md->state.attacked_count--; //Should we reset rude attack count?
-				md->min_chase = cap_value(dist + md->db->range3 - md->status.rhw.range, md->db->range3, MAX_MINCHASE);
+				md->min_chase = dist+md->db->range3;
+				if(md->min_chase>MAX_MINCHASE)
+					md->min_chase=MAX_MINCHASE;
 				tbl = abl; //Set the new target
 			}
 		}
@@ -1870,7 +1871,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 			if (!can_move) //Stuck. Wait before walking.
 				return true;
 			md->state.skillstate = MSS_LOOT;
-			if (!unit_walktobl(&md->bl, tbl, 0, 0))
+			if (!unit_walktobl(&md->bl, tbl, 0, 1))
 				mob_unlocktarget(md, tick); //Can't loot...
 			return true;
 		}
@@ -1944,8 +1945,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 		return true;
 
 	//Only update target cell / drop target after having moved at least "mob_chase_refresh" cells
-	if(md->ud.walktimer != INVALID_TIMER && (!can_move || md->ud.walkpath.path_pos <= battle_config.mob_chase_refresh)
-		&& mob_is_chasing(md->state.skillstate))
+	if(md->ud.walktimer != INVALID_TIMER && (!can_move || md->ud.walkpath.path_pos <= battle_config.mob_chase_refresh))
 		return true;
 
 	//Out of range...
@@ -1968,7 +1968,7 @@ static bool mob_ai_sub_hard(struct mob_data *md, t_tick tick)
 
 	//Follow up if possible.
 	//Hint: Chase skills are handled in the walktobl routine
-	if(!mob_can_reach(md, tbl, md->min_chase) ||
+	if(!mob_can_reach(md, tbl, md->min_chase, MSS_RUSH) ||
 		!unit_walktobl(&md->bl, tbl, md->status.rhw.range, 2))
 		mob_unlocktarget(md,tick);
 
@@ -2008,10 +2008,6 @@ static int mob_ai_sub_lazy(struct mob_data *md, va_list args)
 
 	if(md->bl.prev == NULL)
 		return 0;
-
-	// Monsters force-walked by script commands should not be searching for targets.
-	if (md->ud.state.force_walk)
-		return false;
 
 	t_tick tick = va_arg(args,t_tick);
 
@@ -2107,6 +2103,17 @@ static TIMER_FUNC(mob_ai_hard){
 }
 
 /**
+ * Assign random option values to an item
+ * @param item_option: Random option on the item
+ * @param option: Options to assign
+ */
+void mob_setitem_option(s_item_randomoption &item_option, const std::shared_ptr<s_random_opt_group_entry> &option) {
+	item_option.id = option->id;
+	item_option.value = rnd_value(option->min_value, option->max_value);
+	item_option.param = option->param;
+}
+
+/**
  * Set random option for item when dropped from monster
  * @param item: Item data
  * @param mobdrop: Drop data
@@ -2119,7 +2126,40 @@ void mob_setdropitem_option(item *item, s_mob_drop *mobdrop) {
 	std::shared_ptr<s_random_opt_group> group = random_option_group.find(mobdrop->randomopt_group);
 
 	if (group != nullptr) {
-		group->apply( *item );
+		// Apply Must options
+		for (size_t i = 0; i < group->slots.size(); i++) {
+			// Try to apply an entry
+			for (size_t j = 0, max = group->slots[static_cast<uint16>(i)].size() * 3; j < max; j++) {
+				std::shared_ptr<s_random_opt_group_entry> option = util::vector_random(group->slots[static_cast<uint16>(i)]);
+
+				if (rnd() % 10000 < option->chance) {
+					mob_setitem_option(item->option[i], option);
+					break;
+				}
+			}
+
+			// If no entry was applied, assign one
+			if (item->option[i].id == 0) {
+				std::shared_ptr<s_random_opt_group_entry> option = util::vector_random(group->slots[static_cast<uint16>(i)]);
+
+				// Apply an entry without checking the chance
+				mob_setitem_option(item->option[i], option);
+			}
+		}
+
+		// Apply Random options (if available)
+		if (group->max_random > 0) {
+			for (size_t i = 0; i < min(group->max_random, MAX_ITEM_RDM_OPT); i++) {
+				// If item already has an option in this slot, skip it
+				if (item->option[i].id > 0)
+					continue;
+
+				std::shared_ptr<s_random_opt_group_entry> option = util::vector_random(group->random_options);
+
+				if (rnd() % 10000 < option->chance)
+					mob_setitem_option(item->option[i], option);
+			}
+		}
 	}
 }
 
@@ -2433,13 +2473,16 @@ void mob_damage(struct mob_data *md, struct block_list *src, int damage)
 #if PACKETVER >= 20120404
 	if (battle_config.monster_hp_bars_info && !map_getmapflag(md->bl.m, MF_HIDEMOBHPBAR)) {
 		int i;
+#if PACKETVER_MAIN_NUM >= 20200916 || PACKETVER_RE_NUM >= 20200724
 		if (md->special_state.ai == AI_ABR || md->special_state.ai == AI_BIONIC) {
-			clif_summon_hp_bar(*md);
+			struct map_session_data *sd = map_charid2sd(md->master_id);
+			clif_summon_hp_bar(md, sd);
 		}
+#endif
 		for(i = 0; i < DAMAGELOG_SIZE; i++){ // must show hp bar to all char who already hit the mob.
 			struct map_session_data *sd = map_charid2sd(md->dmglog[i].id);
 			if( sd && check_distance_bl(&md->bl, &sd->bl, AREA_SIZE) ) // check if in range
-				clif_monster_hp_bar(md, sd->fd);
+					clif_monster_hp_bar(md, sd->fd);
 		}
 	}
 #endif
@@ -2664,8 +2707,6 @@ int mob_dead(struct mob_data *md, struct block_list *src, int type)
 				if (per > 2) per = 2; // prevents unlimited exp gain
 			}
 
-			//Exclude rebirth tap from this calculation
-			count -= md->state.rebirth;
 			if (count>1 && battle_config.exp_bonus_attacker) {
 				//Exp bonus per additional attacker.
 				if (count > battle_config.exp_bonus_max_attacker)
@@ -3043,7 +3084,7 @@ int mob_dead(struct mob_data *md, struct block_list *src, int type)
 			{ //TK_MISSION [Skotlex]
 				if (++(sd->mission_count) >= 100 && (temp = mob_get_random_id(MOBG_BRANCH_OF_DEAD_TREE, static_cast<e_random_monster_flags>(RMF_CHECK_MOB_LV|RMF_MOB_NOT_BOSS|RMF_MOB_NOT_SPAWN), sd->status.base_level)))
 				{
-					pc_addfame(*sd, battle_config.fame_taekwon_mission);
+					pc_addfame(sd, battle_config.fame_taekwon_mission);
 					sd->mission_mobid = temp;
 					pc_setglobalreg(sd, add_str(TKMISSIONID_VAR), temp);
 					sd->mission_count = 0;
@@ -3133,9 +3174,9 @@ int mob_dead(struct mob_data *md, struct block_list *src, int type)
 }
 
 /**
- * Resurrects a mob (reset values and respawn on map)
+ * Resurect a mob with x hp (reset value and respawn on map)
  * @param md : mob pointer
- * @param hp : hp to resurrect it with (only used for exp calculation)
+ * @param hp : hp to resurect him with, @FIXME unused atm
  */
 void mob_revive(struct mob_data *md, unsigned int hp)
 {
@@ -3145,9 +3186,7 @@ void mob_revive(struct mob_data *md, unsigned int hp)
 	md->next_walktime = tick+rnd()%1000+MIN_RANDOMWALKTIME;
 	md->last_linktime = tick;
 	md->last_pcneartime = 0;
-	//We reset the damage log and then set the already lost damage as self damage so players don't get exp for it [Playtester]
-	memset(md->dmglog, 0, sizeof(md->dmglog));
-	mob_log_damage(md, &md->bl, md->status.max_hp - hp);
+	memset(md->dmglog, 0, sizeof(md->dmglog));	// Reset the damage done on the rebirthed monster, otherwise will grant full exp + damage done. [Valaris]
 	md->tdmg = 0;
 	if (!md->bl.prev){
 		if(map_addblock(&md->bl))
@@ -3363,14 +3402,17 @@ void mob_heal(struct mob_data *md,unsigned int heal)
 #if PACKETVER >= 20120404
 	if (battle_config.monster_hp_bars_info && !map_getmapflag(md->bl.m, MF_HIDEMOBHPBAR)) {
 		int i;
+#if PACKETVER_MAIN_NUM >= 20200916 || PACKETVER_RE_NUM >= 20200724
 		if (md->special_state.ai == AI_ABR || md->special_state.ai == AI_BIONIC) {
-			clif_summon_hp_bar(*md);
+			struct map_session_data *sd = map_charid2sd(md->master_id);
+			clif_summon_hp_bar(md, sd);
 		}
+#endif
 		for(i = 0; i < DAMAGELOG_SIZE; i++)// must show hp bar to all char who already hit the mob.
 			if( md->dmglog[i].id ) {
 				struct map_session_data *sd = map_charid2sd(md->dmglog[i].id);
 				if( sd && check_distance_bl(&md->bl, &sd->bl, AREA_SIZE) ) // check if in range
-					clif_monster_hp_bar(md, sd->fd);
+						clif_monster_hp_bar(md, sd->fd);
 			}
 	}
 #endif
@@ -3795,12 +3837,7 @@ int mobskill_use(struct mob_data *md, t_tick tick, int event)
 					bl = &md->bl;
 					break;
 			}
-			if (!bl) {
-				if (battle_config.mob_ai & 0x1000)
-					continue;
-				else
-					break;
-			}
+			if (!bl) continue;
 
 			x = bl->x;
 		  	y = bl->y;
@@ -3817,10 +3854,7 @@ int mobskill_use(struct mob_data *md, t_tick tick, int event)
 				!unit_skilluse_pos2(&md->bl, x, y, ms[i]->skill_id, ms[i]->skill_lv, ms[i]->casttime, ms[i]->cancel))
 			{
 				map_freeblock_unlock();
-				if (battle_config.mob_ai & 0x1000)
-					continue;
-				else
-					break;
+				continue;
 			}
 		} else {
 			//Targetted skill
@@ -3850,12 +3884,7 @@ int mobskill_use(struct mob_data *md, t_tick tick, int event)
 					bl = &md->bl;
 					break;
 			}
-			if (!bl) {
-				if (battle_config.mob_ai & 0x1000)
-					continue;
-				else
-					break;
-			}
+			if (!bl) continue;
 
 			md->skill_idx = i;
 			map_freeblock_lock();
@@ -3863,10 +3892,7 @@ int mobskill_use(struct mob_data *md, t_tick tick, int event)
 				!unit_skilluse_id2(&md->bl, bl->id, ms[i]->skill_id, ms[i]->skill_lv, ms[i]->casttime, ms[i]->cancel))
 			{
 				map_freeblock_unlock();
-				if (battle_config.mob_ai & 0x1000)
-					continue;
-				else
-					break;
+				continue;
 			}
 		}
 		//Skill used. Post-setups...
@@ -4208,8 +4234,8 @@ const std::string MobDatabase::getDefaultLocation() {
 	return std::string(db_path) + "/mob_db.yml";
 }
 
-bool MobDatabase::parseDropNode(std::string nodeName, const ryml::NodeRef& node, uint8 max, s_mob_drop *drops) {
-	const auto& dropNode = node[c4::to_csubstr(nodeName)];
+bool MobDatabase::parseDropNode(std::string nodeName, YAML::Node node, uint8 max, s_mob_drop *drops) {
+	const YAML::Node &dropNode = node[nodeName];
 	uint16 i;
 
 	// Find first empty spot
@@ -4219,7 +4245,7 @@ bool MobDatabase::parseDropNode(std::string nodeName, const ryml::NodeRef& node,
 		}
 	}
 
-	for (const auto& dropit : dropNode) {
+	for (const YAML::Node &dropit : dropNode) {
 		uint16 index;
 
 		if (this->nodeExists(dropit, "Index")) {
@@ -4289,7 +4315,7 @@ bool MobDatabase::parseDropNode(std::string nodeName, const ryml::NodeRef& node,
  * @param node: YAML node containing the entry.
  * @return count of successfully parsed rows
  */
-uint64 MobDatabase::parseBodyNode(const ryml::NodeRef& node) {
+uint64 MobDatabase::parseBodyNode(const YAML::Node &node) {
 	uint32 mob_id;
 
 	if (!this->asUInt32(node, "Id", mob_id))
@@ -4680,21 +4706,19 @@ uint64 MobDatabase::parseBodyNode(const ryml::NodeRef& node) {
 	}
 
 	if (this->nodeExists(node, "RaceGroups")) {
-		const auto& raceNode = node["RaceGroups"];
+		const YAML::Node &raceNode = node["RaceGroups"];
 
 		for (const auto &raceit : raceNode) {
-			std::string raceName;
-			c4::from_chars(raceit.key(), &raceName);
-			std::string raceName_constant = "RC2_" + raceName;
+			std::string raceName = raceit.first.as<std::string>(), raceName_constant = "RC2_" + raceName;
 			int64 constant;
 
 			if (!script_get_constant(raceName_constant.c_str(), &constant)) {
-				this->invalidWarning(raceNode[raceit.key()], "Unknown monster race group %s, skipping.\n", raceName.c_str());
+				this->invalidWarning(raceNode[raceName], "Unknown monster race group %s, skipping.\n", raceName.c_str());
 				continue;
 			}
 
 			if (!CHK_RACE2(constant)) {
-				this->invalidWarning(raceNode[raceit.key()], "Invalid monster race group %s, skipping.\n", raceName.c_str());
+				this->invalidWarning(raceNode[raceName], "Invalid monster race group %s, skipping.\n", raceName.c_str());
 				continue;
 			}
 
@@ -4871,21 +4895,19 @@ uint64 MobDatabase::parseBodyNode(const ryml::NodeRef& node) {
 	}
 
 	if (this->nodeExists(node, "Modes")) {
-		const auto& modeNode = node["Modes"];
+		const YAML::Node &modeNode = node["Modes"];
 
-		for (const auto& modeit : modeNode) {
-			std::string modeName;
-			c4::from_chars(modeit.key(), &modeName);
-			std::string modeName_constant = "MD_" + modeName;
+		for (const auto &modeit : modeNode) {
+			std::string modeName = modeit.first.as<std::string>(), modeName_constant = "MD_" + modeName;
 			int64 constant;
 
 			if (!script_get_constant(modeName_constant.c_str(), &constant)) {
-				this->invalidWarning(modeNode[modeit.key()], "Unknown monster mode %s, skipping.\n", modeName.c_str());
+				this->invalidWarning(modeNode[modeName], "Unknown monster mode %s, skipping.\n", modeName.c_str());
 				continue;
 			}
 
 			if (constant < MD_NONE || constant > MD_SKILLIMMUNE) {
-				this->invalidWarning(modeNode[modeit.key()], "Invalid monster mode %s, skipping.\n", modeName.c_str());
+				this->invalidWarning(modeNode[modeName], "Invalid monster mode %s, skipping.\n", modeName.c_str());
 				continue;
 			}
 
@@ -4942,6 +4964,9 @@ void MobDatabase::loadingFinished() {
 		if (battle_config.chase_range_rate != 100)
 			mob->range3 = max(mob->range2, mob->range3 * battle_config.chase_range_rate / 100);
 
+		// Tests showed that chase range is effectively 2 cells larger than expected [Playtester]
+		mob->range3 += 2;
+
 		// If the attack animation is longer than the delay, the client crops the attack animation!
 		// On aegis there is no real visible effect of having a recharge-time less than amotion anyway.
 		mob->status.adelay = max(mob->status.adelay, mob->status.amotion);
@@ -4984,205 +5009,181 @@ MobDatabase mob_db;
  * @return True on success or false otherwise
  */
 static bool mob_read_sqldb_sub(std::vector<std::string> str) {
-	ryml::Tree tree;
-	ryml::NodeRef node = tree.rootref();
-	node |= ryml::MAP;
+	YAML::Node node;
 	int32 index = -1;
 
-	node["Id"] << str[++index];
+	node["Id"] = std::stoul(str[++index]);
 	if (!str[++index].empty())
-		node["AegisName"] << str[index];
+		node["AegisName"] = str[index];
 	if (!str[++index].empty())
-		node["Name"] << str[index];
+		node["Name"] = str[index];
 	if (!str[++index].empty())
-		node["JapaneseName"] << str[index];
+		node["JapaneseName"] = str[index];
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Level"] << str[index];
+		node["Level"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoul(str[index]) > 1)
-		node["Hp"] << str[index];
+		node["Hp"] = std::stoul(str[index]);
 	if (!str[++index].empty() && std::stoul(str[index]) > 1)
-		node["Sp"] << str[index];
+		node["Sp"] = std::stoul(str[index]);
 	if (!str[++index].empty())
-		node["BaseExp"] << str[index];
+		node["BaseExp"] = std::stoul(str[index]);
 	if (!str[++index].empty())
-		node["JobExp"] << str[index];
+		node["JobExp"] = std::stoul(str[index]);
 	if (!str[++index].empty())
-		node["MvpExp"] << str[index];
+		node["MvpExp"] = std::stoul(str[index]);
 	if (!str[++index].empty())
-		node["Attack"] << str[index];
+		node["Attack"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["Attack2"] << str[index];
+		node["Attack2"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["Defense"] << str[index];
+		node["Defense"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["MagicDefense"] << str[index];
+		node["MagicDefense"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Str"] << str[index];
+		node["Str"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Agi"] << str[index];
+		node["Agi"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Vit"] << str[index];
+		node["Vit"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Int"] << str[index];
+		node["Int"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Dex"] << str[index];
+		node["Dex"] = std::stoi(str[index]);
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["Luk"] << str[index];
+		node["Luk"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["AttackRange"] << str[index];
+		node["AttackRange"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["SkillRange"] << str[index];
+		node["SkillRange"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["ChaseRange"] << str[index];
+		node["ChaseRange"] = std::stoi(str[index]);
 	if (!str[++index].empty() && strcmp(str[index].c_str(), "Small") != 0)
-		node["Size"] << str[index];
+		node["Size"] = str[index];
 	if (!str[++index].empty() && strcmp(str[index].c_str(), "Formless") != 0)
-		node["Race"] << str[index];
-
-	ryml::NodeRef raceGroupsNode = node["RaceGroups"];
-	raceGroupsNode |= ryml::MAP;
+		node["Race"] = str[index];
 
 	for (uint16 i = 1; i < RC2_MAX; i++) {
-		if (!str[i + index].empty()) {
-			raceGroupsNode[c4::to_csubstr(script_get_constant_str("RC2_", i) + 4)] << (std::stoi(str[i + index]) ? "true" : "false");
-		}
+		if (!str[i + index].empty())
+			node["RaceGroups"][script_get_constant_str("RC2_", i) + 4] = std::stoi(str[i + index]) ? "true" : "false";
 	}
 
 	index += RC2_MAX - 1;
 
 	if (!str[++index].empty() && strcmp(str[index].c_str(), "Neutral") != 0)
-		node["Element"] << str[index];
+		node["Element"] = str[index];
 	if (!str[++index].empty() && std::stoi(str[index]) > 1)
-		node["ElementLevel"] << str[index];
+		node["ElementLevel"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["WalkSpeed"] << str[index];
+		node["WalkSpeed"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["AttackDelay"] << str[index];
+		node["AttackDelay"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["AttackMotion"] << str[index];
+		node["AttackMotion"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["DamageMotion"] << str[index];
+		node["DamageMotion"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["DamageTaken"] << str[index];
+		node["DamageTaken"] = std::stoi(str[index]);
 	if (!str[++index].empty() && strcmp(str[index].c_str(), "06") != 0)
-		node["Ai"] << str[index];
+		node["Ai"] = str[index];
 	if (!str[++index].empty() && strcmp(str[index].c_str(), "Normal") != 0)
-		node["Class"] << str[index];
+		node["Class"] = str[index];
 
-	ryml::NodeRef modes = node["Modes"];
-	modes |= ryml::MAP;
+	YAML::Node modes;
 
 	if (!str[++index].empty())
-		modes["CanMove"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["CanMove"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["Looter"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["Looter"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["Aggressive"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["Aggressive"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["Assist"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["Assist"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["CastSensorIdle"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["CastSensorIdle"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["NoRandomWalk"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["NoRandomWalk"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["NoCast"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["NoCast"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["CanAttack"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["CanAttack"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["CastSensorChase"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["CastSensorChase"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["ChangeChase"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["ChangeChase"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["Angry"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["Angry"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["ChangeTargetMelee"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["ChangeTargetMelee"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["ChangeTargetChase"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["ChangeTargetChase"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["TargetWeak"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["TargetWeak"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["RandomTarget"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["RandomTarget"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["IgnoreMelee"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["IgnoreMelee"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["IgnoreMagic"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["IgnoreMagic"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["IgnoreRanged"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["IgnoreRanged"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["Mvp"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["Mvp"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["IgnoreMisc"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["IgnoreMisc"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["KnockBackImmune"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["KnockBackImmune"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["TeleportBlock"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["TeleportBlock"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["FixedItemDrop"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["FixedItemDrop"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["Detector"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["Detector"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["StatusImmune"] << (std::stoi(str[index]) ? "true" : "false");
+		modes["StatusImmune"] = std::stoi(str[index]) ? "true" : "false";
 	if (!str[++index].empty())
-		modes["SkillImmune"] << (std::stoi(str[index]) ? "true" : "false");
-
-	ryml::NodeRef mvpDropsNode = node["MvpDrops"];
-	mvpDropsNode |= ryml::SEQ;
+		modes["SkillImmune"] = std::stoi(str[index]) ? "true" : "false";
+	node["Modes"] = modes;
 
 	for (uint8 i = 0; i < MAX_MVP_DROP; i++) {
-		if (!str[++index].empty()) {
-			ryml::NodeRef entry = mvpDropsNode[i];
-			entry |= ryml::MAP;
+		YAML::Node mvpdrops;
 
-			entry["Item"] << str[index];
-			if (!str[++index].empty())
-				entry["Rate"] << str[index];
-			if (!str[++index].empty() && strcmp(str[index].c_str(), "None") != 0)
-				entry["RandomOptionGroup"] << str[index];
-			if (!str[++index].empty() && std::stoi(str[index]) >= 0)
-				entry["Index"] << str[index];
-		} else
-			index += 3;
+		if (!str[++index].empty())
+			mvpdrops["Item"] = str[index];
+		if (!str[++index].empty())
+			mvpdrops["Rate"] = std::stoi(str[index]);
+		if (!str[++index].empty() && strcmp(str[index].c_str(), "None") != 0)
+			mvpdrops["RandomOptionGroup"] = str[index];
+		if (!str[++index].empty() && std::stoi(str[index]) >= 0)
+			mvpdrops["Index"] = std::stoi(str[index]);
+
+		if (!mvpdrops.IsNull())
+			node["MvpDrops"][i] = mvpdrops;
 	}
 
-	ryml::NodeRef dropsNode = node["Drops"];
-	dropsNode |= ryml::SEQ;
-
 	for (uint8 i = 0; i < MAX_MOB_DROP; i++) {
-		if (!str[++index].empty()) {
-			ryml::NodeRef entry = dropsNode[i];
-			entry |= ryml::MAP;
+		YAML::Node drops;
 
-			entry["Item"] << str[index];
-			if (!str[++index].empty())
-				entry["Rate"] << str[index];
-			if (!str[++index].empty())
-				entry["StealProtected"] << (std::stoi(str[index]) ? "true" : "false");
-			if (!str[++index].empty() && strcmp(str[index].c_str(), "None") != 0)
-				entry["RandomOptionGroup"] << str[index];
-			if (!str[++index].empty() && std::stoi(str[index]) >= 0)
-				entry["Index"] << str[index];
-		} else
-			index += 4;
+		if (!str[++index].empty())
+			drops["Item"] = str[index];
+		if (!str[++index].empty())
+			drops["Rate"] = std::stoi(str[index]);
+		if (!str[++index].empty())
+			drops["StealProtected"] = std::stoi(str[index]) ? "true" : "false";
+		if (!str[++index].empty() && strcmp(str[index].c_str(), "None") != 0)
+			drops["RandomOptionGroup"] = str[index];
+		if (!str[++index].empty() && std::stoi(str[index]) >= 0)
+			drops["Index"] = std::stoi(str[index]);
+
+		if (!drops.IsNull())
+			node["Drops"][i] = drops;
 	}
 
 #ifdef RENEWAL
 	if (!str[++index].empty())
-		node["Resistance"] << std::stoi(str[index]);
+		node["Resistance"] = std::stoi(str[index]);
 	if (!str[++index].empty())
-		node["MagicResistance"] << std::stoi(str[index]);
+		node["MagicResistance"] = std::stoi(str[index]);
 #endif
-
-	if( !modes.has_children() ){
-		node.remove_child( modes );
-	}
-
-	if( !mvpDropsNode.has_children() ){
-		node.remove_child( mvpDropsNode );
-	}
-
-	if( !dropsNode.has_children() ){
-		node.remove_child( dropsNode );
-	}
 
 	return mob_db.parseBodyNode(node) > 0;
 }
@@ -5200,7 +5201,7 @@ static int mob_read_sqldb(void)
 	for( uint8 fi = 0; fi < ARRAYLENGTH(mob_db_name); ++fi ) {
 		// retrieve all rows from the mob database
 		if( SQL_ERROR == Sql_Query(mmysql_handle, "SELECT `id`,`name_aegis`,`name_english`,`name_japanese`,`level`,`hp`,`sp`,`base_exp`,`job_exp`,`mvp_exp`,`attack`,`attack2`,`defense`,`magic_defense`,`str`,`agi`,`vit`,`int`,`dex`,`luk`,`attack_range`,`skill_range`,`chase_range`,`size`,`race`,"
-			"`racegroup_goblin`,`racegroup_kobold`,`racegroup_orc`,`racegroup_golem`,`racegroup_guardian`,`racegroup_ninja`,`racegroup_gvg`,`racegroup_battlefield`,`racegroup_treasure`,`racegroup_biolab`,`racegroup_manuk`,`racegroup_splendide`,`racegroup_scaraba`,`racegroup_ogh_atk_def`,`racegroup_ogh_hidden`,`racegroup_bio5_swordman_thief`,`racegroup_bio5_acolyte_merchant`,`racegroup_bio5_mage_archer`,`racegroup_bio5_mvp`,`racegroup_clocktower`,`racegroup_thanatos`,`racegroup_faceworm`,`racegroup_hearthunter`,`racegroup_rockridge`,`racegroup_werner_lab`,`racegroup_temple_demon`,`racegroup_illusion_vampire`,`racegroup_malangdo`,"
+			"`racegroup_goblin`,`racegroup_kobold`,`racegroup_orc`,`racegroup_golem`,`racegroup_guardian`,`racegroup_ninja`,`racegroup_gvg`,`racegroup_battlefield`,`racegroup_treasure`,`racegroup_biolab`,`racegroup_manuk`,`racegroup_splendide`,`racegroup_scaraba`,`racegroup_ogh_atk_def`,`racegroup_ogh_hidden`,`racegroup_bio5_swordman_thief`,`racegroup_bio5_acolyte_merchant`,`racegroup_bio5_mage_archer`,`racegroup_bio5_mvp`,`racegroup_clocktower`,`racegroup_thanatos`,`racegroup_faceworm`,`racegroup_hearthunter`,`racegroup_rockridge`,`racegroup_werner_lab`,`racegroup_temple_demon`,`racegroup_illusion_vampire`,"
 			"`element`,`element_level`,`walk_speed`,`attack_delay`,`attack_motion`,`damage_motion`,`damage_taken`,`ai`,`class`,"
 			"`mode_canmove`,`mode_looter`,`mode_aggressive`,`mode_assist`,`mode_castsensoridle`,`mode_norandomwalk`,`mode_nocast`,`mode_canattack`,`mode_castsensorchase`,`mode_changechase`,`mode_angry`,`mode_changetargetmelee`,`mode_changetargetchase`,`mode_targetweak`,`mode_randomtarget`,`mode_ignoremelee`,`mode_ignoremagic`,`mode_ignoreranged`,`mode_mvp`,`mode_ignoremisc`,`mode_knockbackimmune`,`mode_teleportblock`,`mode_fixeditemdrop`,`mode_detector`,`mode_statusimmune`,`mode_skillimmune`,"
 			"`mvpdrop1_item`,`mvpdrop1_rate`,`mvpdrop1_option`,`mvpdrop1_index`,`mvpdrop2_item`,`mvpdrop2_rate`,`mvpdrop2_option`,`mvpdrop2_index`,`mvpdrop3_item`,`mvpdrop3_rate`,`mvpdrop3_option`,`mvpdrop3_index`,"
@@ -5258,7 +5259,7 @@ const std::string MobAvailDatabase::getDefaultLocation() {
  * @param node: YAML node containing the entry.
  * @return count of successfully parsed rows
  */
-uint64 MobAvailDatabase::parseBodyNode(const ryml::NodeRef& node) {
+uint64 MobAvailDatabase::parseBodyNode(const YAML::Node &node) {
 	std::string mob_name;
 
 	if (!this->asString(node, "Mob", mob_name))
@@ -5515,12 +5516,10 @@ uint64 MobAvailDatabase::parseBodyNode(const ryml::NodeRef& node) {
 	}
 
 	if (this->nodeExists(node, "Options")) {
-		const auto& optionNode = node["Options"];
+		const YAML::Node &optionNode = node["Options"];
 
-		for (const auto& it : optionNode) {
-			std::string option;
-			c4::from_chars(it.key(), &option);
-			std::string option_constant = "OPTION_" + option;
+		for (const auto &it : optionNode) {
+			std::string option = it.first.as<std::string>(), option_constant = "OPTION_" + option;
 			int64 constant;
 
 			if (!script_get_constant(option_constant.c_str(), &constant)) {
@@ -5564,7 +5563,7 @@ const std::string MobSummonDatabase::getDefaultLocation() {
  * @param node: YAML node containing the entry.
  * @return count of successfully parsed rows
  */
-uint64 MobSummonDatabase::parseBodyNode(const ryml::NodeRef& node) {
+uint64 MobSummonDatabase::parseBodyNode(const YAML::Node &node) {
 	std::string group_name;
 
 	if (!this->asString(node, "Group", group_name))
@@ -5608,9 +5607,9 @@ uint64 MobSummonDatabase::parseBodyNode(const ryml::NodeRef& node) {
 	}
 
 	if (this->nodeExists(node, "Summon")) {
-		const auto& MobNode = node["Summon"];
+		const YAML::Node &MobNode = node["Summon"];
 
-		for (const auto& mobit : MobNode) {
+		for (const YAML::Node &mobit : MobNode) {
 			if (!this->nodesExist(mobit, { "Mob", "Rate" })) {
 				continue;
 			}
@@ -5666,7 +5665,7 @@ const std::string MobChatDatabase::getDefaultLocation() {
  * @param node: YAML node containing the entry.
  * @return count of successfully parsed rows
  */
-uint64 MobChatDatabase::parseBodyNode(const ryml::NodeRef& node) {
+uint64 MobChatDatabase::parseBodyNode(const YAML::Node &node) {
 	uint16 id;
 
 	if (!this->asUInt16(node, "Id", id))
@@ -6043,7 +6042,7 @@ const std::string MobItemRatioDatabase::getDefaultLocation() {
  * @param node: YAML node containing the entry.
  * @return count of successfully parsed rows
  */
-uint64 MobItemRatioDatabase::parseBodyNode(const ryml::NodeRef& node) {
+uint64 MobItemRatioDatabase::parseBodyNode(const YAML::Node &node) {
 	std::string item_name;
 
 	if (!this->asString(node, "Item", item_name))
@@ -6080,11 +6079,10 @@ uint64 MobItemRatioDatabase::parseBodyNode(const ryml::NodeRef& node) {
 	}
 
 	if (this->nodeExists(node, "List")) {
-		const auto& MobNode = node["List"];
+		const YAML::Node &MobNode = node["List"];
 
-		for (const auto& mobit : MobNode) {
-			std::string mob_name;
-			c4::from_chars(mobit.key(), &mob_name);
+		for (const auto mobit : MobNode) {
+			std::string mob_name = mobit.first.as<std::string>();
 
 			std::shared_ptr<s_mob_db> mob = mobdb_search_aegisname(mob_name.c_str());
 

@@ -742,11 +742,11 @@ void clif_class_change_target(struct block_list *bl,int class_, int type, enum s
 #define clif_class_change(bl, class_, type) clif_class_change_target(bl, class_, type, AREA, NULL)
 #define clif_mob_class_change(md, class_) clif_class_change(&md->bl, class_, 1)
 
-void clif_skillinfoblock(struct map_session_data *sd);
+void clif_skillinfoblock( struct map_session_data& sd );
 void clif_skillup(struct map_session_data *sd, uint16 skill_id, int lv, int range, int upgradable);
-void clif_skillinfo(struct map_session_data *sd,int skill_id, int inf);
-void clif_addskill(struct map_session_data *sd, int skill_id);
-void clif_deleteskill(struct map_session_data *sd, int skill_id);
+void clif_skillinfo( struct map_session_data& sd, uint16 skill_id, int inf );
+void clif_addskill( struct map_session_data& sd, uint16 skill_id );
+void clif_deleteskill( struct map_session_data& sd, uint16 skill_id );
 
 void clif_skillcasting(struct block_list* bl, int src_id, int dst_id, int dst_x, int dst_y, uint16 skill_id, uint16 skill_lv, int property, int casttime);
 void clif_skillcastcancel(struct block_list* bl);
@@ -1212,6 +1212,9 @@ void clif_pet_evolution_result( struct map_session_data* sd, e_pet_evolution_res
 void clif_parse_skill_toid( struct map_session_data* sd, uint16 skill_id, uint16 skill_lv, int target_id );
 
 void clif_inventory_expansion_info( struct map_session_data* sd );
+
+void clif_summon_init(struct mob_data* md);
+void clif_summon_hp_bar(struct mob_data* md, struct map_session_data* sd);
 
 // Barter System
 void clif_barter_open( struct map_session_data& sd, struct npc_data& nd );

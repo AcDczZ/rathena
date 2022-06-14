@@ -670,7 +670,7 @@ har_in01,20,30,5	script	Wyatt Warp#har_in01	4_M_YATTWARP,{
 			mes "Shawn was right.";
 			mes "Give me the ore.";
 			mes "I'll give it to Shawn.";
-			delitem 25247, countitem(25247);// Violet_Stone
+			delitem 25247, countitem(25247);// Purple Ore
 			setquest 7809;// Collecting Ores
 			completequest 7809;// Collecting Ores
 			next;
@@ -697,7 +697,7 @@ har_in01,20,30,5	script	Wyatt Warp#har_in01	4_M_YATTWARP,{
 			mes "Shawn was right.";
 			mes "Give me the ore.";
 			mes "I'll give it to Shawn.";
-			delitem 25247, countitem(25247);// Violet_Stone
+			delitem 25247, countitem(25247);// Purple Ore
 			setquest 7809;// Collecting Ores
 			completequest 7809;// Collecting Ores
 			next;
@@ -805,7 +805,7 @@ har_in01,20,30,5	script	Wyatt Warp#har_in01	4_M_YATTWARP,{
 		mes "Be proud of yourself.";
 		mes "And this is reward money.";
 		rock_main_quest = 22;
-		delitem 25248,1;// Violet_Stone_Box
+		delitem 25248,1;// Purple_Ore_Crate
 		erasequest 7808;// Case Solved
 		setquest 9457;// Solved Anyway
 		completequest 9457;// Solved Anyway
@@ -1023,7 +1023,7 @@ har_in01,89,26,5	script	Johnny James#har_in01	4_M_JOHNNYJAMES,{
 		setpcblock PCBLOCK_NPC, true;
 		npctalk "You sneaky bastards, how dare you show up again? Go to hell!", "", bc_self;
 		sleep2 2000;
-		cloakoffnpcself(  "Ivoka Skudi#har02" );
+		cloakoffnpc  "Ivoka Skudi#har02", getcharid(0);
 		setpcblock PCBLOCK_NPC, false;
 		npctalk "Ah, you'd better show some respect to our future mayor.", "Ivoka Skudi#har02", bc_self;
 		mes "[Ivoka Skudi]";
@@ -1072,7 +1072,7 @@ har_in01,89,26,5	script	Johnny James#har_in01	4_M_JOHNNYJAMES,{
 		next;
 		unittalk getcharid(3), "" + .@player_name$ + " : Actually, you have.", bc_self;
 		mes "[" + .@player_name$ + "]";
-		mes "Albert wants us to pay him for the ores.";
+		mes "Alert wants us to pay him for the ores.";
 		mes "But we don't have to pay him if you tell us where they are.";
 		next;
 		mes "[" + .@player_name$ + "]";
@@ -1186,7 +1186,7 @@ har_in01,89,26,5	script	Johnny James#har_in01	4_M_JOHNNYJAMES,{
 		mes "Good luck.";
 		mes "And don't forget to tell the sheriff I cooperated.";
 		rock_main_quest = 15;
-		delitem 25249,1;// Mane_Of_Cow
+		delitem 25249,1;// Buffalo_Bandit_Mane
 		erasequest 7803;// Happy for Broken Trust
 		setquest 7804;// Location of the Ores
 		close;
@@ -1212,7 +1212,7 @@ har_in01,88,22,6	script	Ivoka Skudi#har02	4_M_EVOKASCUDI,{
 		mes "[Ivoka Skudi]";
 		mes "(Whispering) He's more simpleminded than I thought. Let's go report to the Sheriff.";
 		close2;
-		cloakonnpcself(  "Ivoka Skudi#har02" );
+		cloakonnpc  "Ivoka Skudi#har02", getcharid(0);
 		end;
 	}
 	end;
@@ -1234,19 +1234,19 @@ rockrdg1,156,312,3	script	Unmoving Freight Train#	4_ENERGY_RED,{
 		setpcblock PCBLOCK_NPC, true;
 		unittalk getcharid(3), "" + strcharinfo(0) + " : I think this is the place, but maybe I came too early.", bc_self;
 		sleep2 2000;
-		cloakoffnpcself( "Johnny James#revt04" );
+		cloakoffnpc "Johnny James#revt04", getcharid(0);
 		sleep2 1000;
 		emotion ET_QUESTION, getnpcid(0,"Johnny James#revt04");
 		npctalk "Who's this? You're not the one I was expecting.", "Johnny James#revt04", bc_self;
 		sleep2 1000;
-		cloakoffnpcself( "Albert Ford#revt08" );
+		cloakoffnpc "Albert Ford#revt08", getcharid(0);
 		npctalk "Hey Boss, I told you not to go without me.", "Albert Ford#revt08", bc_self;
 		sleep2 2000;
 		npctalk "Mm? I don't remember if Costello looks like that.", "Albert Ford#revt08", bc_self;
 		sleep2 2500;
 		npctalk "Hey, I'm having an important meeting here. Scram!", "Johnny James#revt04", bc_self;
 		sleep2 2000;
-		cloakoffnpcself( "Wyatt Warp#revt03" );
+		cloakoffnpc "Wyatt Warp#revt03", getcharid(0);
 		sleep2 1000;
 		npctalk "Johnny James? You shouldn't be so rude to the Officer.", "Wyatt Warp#revt03", bc_self;
 		sleep2 2500;
@@ -1277,10 +1277,10 @@ rockrdg1,156,312,3	script	Unmoving Freight Train#	4_ENERGY_RED,{
 		npctalk "What? I haven't even started?", "Johnny James#revt04", bc_self;
 		sleep2 500;
 		specialeffect 563, AREA, "Johnny James#revt04";
-		cloakoffnpcself( "Cactus Gunslinger#revt05" );
-		cloakoffnpcself( "Cactus Gunslinger#revt06" );
-		cloakoffnpcself( "Cactus Gunslinger#revt07" );
-		cloakoffnpcself( "Ivoka Skudi#revt02" );
+		cloakoffnpc "Cactus Gunslinger#revt05", getcharid(0);
+		cloakoffnpc "Cactus Gunslinger#revt06", getcharid(0);
+		cloakoffnpc "Cactus Gunslinger#revt07", getcharid(0);
+		cloakoffnpc "Ivoka Skudi#revt02", getcharid(0);
 		npctalk "Freeze!", "Ivoka Skudi#revt02", bc_self;
 		sleep2 1000;
 		specialeffect 453, AREA, "Johnny James#revt04";
@@ -1306,7 +1306,7 @@ rockrdg1,156,312,3	script	Unmoving Freight Train#	4_ENERGY_RED,{
 		npctalk "I-I'll go bring the rest of our gang!", "Albert Ford#revt08", bc_self;
 		sleep2 1000;
 		npctalk "WHAT?", "Johnny James#revt04", bc_self;
-		cloakonnpcself( "Albert Ford#revt08" );
+		cloakonnpc "Albert Ford#revt08", getcharid(0);
 		sleep2 1000;
 		npctalk "ALBERT!", "Johnny James#revt04", bc_self;
 		sleep2 2000;
@@ -1329,11 +1329,11 @@ rockrdg1,156,312,3	script	Unmoving Freight Train#	4_ENERGY_RED,{
 		sleep2 1000;
 		npctalk "Guys, let's go!", "Ivoka Skudi#revt02", bc_self;
 		sleep2 2000;
-		cloakonnpcself( "Cactus Gunslinger#revt05" );
-		cloakonnpcself( "Cactus Gunslinger#revt06" );
-		cloakonnpcself( "Cactus Gunslinger#revt07" );
-		cloakonnpcself( "Ivoka Skudi#revt02" );
-		cloakonnpcself( "Johnny James#revt04" );
+		cloakonnpc "Cactus Gunslinger#revt05", getcharid(0);
+		cloakonnpc "Cactus Gunslinger#revt06", getcharid(0);
+		cloakonnpc "Cactus Gunslinger#revt07", getcharid(0);
+		cloakonnpc "Ivoka Skudi#revt02", getcharid(0);
+		cloakonnpc "Johnny James#revt04", getcharid(0);
 		sleep2 2000;
 		npctalk "Let's go back, shall we?", "Wyatt Warp#revt03", bc_self;
 		rock_main_quest = 6;
@@ -1367,7 +1367,7 @@ rockrdg1,153,303,5	script	Wyatt Warp#revt03	4_M_YATTWARP,{
 		mes "[Wyatt Warp]";
 		mes "Let's go back to my office.";
 		close2;
-		cloakonnpcself(  "Wyatt Warp#revt03" );
+		cloakonnpc  "Wyatt Warp#revt03", getcharid(0);
 		end;
 	}
 	end;
@@ -1792,7 +1792,7 @@ rockmi2,97,120,5	script	Broken Elevator#rrevt10	4_ENERGY_WHITE,{
 	if (rock_main_quest == 18) {
 		mes "I removed the plate from the bottom of the elevator and found boxes of ores underneath it.";
 		unittalk getcharid(3), "" + strcharinfo(0) + " : Shawn said just one box.", bc_self;
-		getitem 25248,1;// Violet_Stone_Box
+		getitem 25248,1;// Purple Ore Crate
 		rock_main_quest = 19;
 		close;
 	}
@@ -1820,14 +1820,14 @@ rockrdg2,279,313,3	script	Concaved Rock#revt09	4_ENERGY_RED,{
 			close;
 		}
 		npctalk "Boss? Is that you, Boss?", "Albert Ford#rockrdg2", bc_self;
-		cloakoffnpcself( "Albert Ford#rockrdg2" );
+		cloakoffnpc "Albert Ford#rockrdg2", getcharid(0);
 		close;
 	}
 	if (rock_main_quest == 14) {
 		if (countitem(25249) < 1) {
 			mes "I knocked on the signaling rock, and Albert Ford came out running.";
 			npctalk "Who are you?!", "Albert Ford#rockrdg2", bc_self;
-			cloakoffnpcself( "Albert Ford#rockrdg2" );
+			cloakoffnpc "Albert Ford#rockrdg2", getcharid(0);
 			close;
 		}
 		mes "I don't have to use this right now.";
@@ -1840,7 +1840,7 @@ rockrdg2,279,313,3	script	Concaved Rock#revt09	4_ENERGY_RED,{
 		}
 		mes "I knocked on the signaling rock, and Albert Ford came out running.";
 		npctalk "Who are you?!", "Albert Ford#rockrdg2", bc_self;
-		cloakoffnpcself( "Albert Ford#rockrdg2" );
+		cloakoffnpc "Albert Ford#rockrdg2", getcharid(0);
 		close;
 	}
 	if (rock_main_quest == 20) {
@@ -1850,7 +1850,7 @@ rockrdg2,279,313,3	script	Concaved Rock#revt09	4_ENERGY_RED,{
 		}
 		if (countitem(25249) < 1) {
 			mes "I knocked on the signaling rock, and Albert Ford came out running.";
-			cloakoffnpcself( "Albert Ford#rockrdg2" );
+			cloakoffnpc "Albert Ford#rockrdg2", getcharid(0);
 			npctalk "Who are you?!", "Albert Ford#rockrdg2", bc_self;
 			close;
 		}
@@ -2061,12 +2061,12 @@ rockrdg2,295,309,3	script	Albert Ford#rockrdg2	4_M_ALBERTFORD,{
 		next;
 		mes "[Albert Ford]";
 		mes "Next time we meet, we'll meet at Johnny's funeral, got it?";
-		getitem 25249,1;// Mane_Of_Cow
+		getitem 25249,1;// Buffalo_Bandit_Mane
 		erasequest 7802;// Hear Me Out 2
 		setquest 7803;// Happy for Broken Trust
 		rock_main_quest = 14;
 		close2;
-		cloakonnpcself();
+		cloakonnpc strnpcinfo(0), getcharid(0);
 		end;
 	}
 	if (rock_main_quest == 14 && countitem(25249) < 1) {
@@ -2082,9 +2082,9 @@ rockrdg2,295,309,3	script	Albert Ford#rockrdg2	4_M_ALBERTFORD,{
 		next;
 		mes "[Albert Ford]";
 		mes "Here, take it.";
-		getitem 25249,1;// Mane_Of_Cow
+		getitem 25249,1;// Buffalo_Bandit_Mane
 		close2;
-		cloakonnpcself();
+		cloakonnpc strnpcinfo(0), getcharid(0);
 		end;
 	}
 	if (rock_main_quest == 20 && checkquest(7807,HUNTING) == 2) {
@@ -2096,7 +2096,7 @@ rockrdg2,295,309,3	script	Albert Ford#rockrdg2	4_M_ALBERTFORD,{
 			mes "What? What is it?";
 			mes "Don't call me unless you have something to tell me!";
 			close2;
-			cloakonnpcself();
+			cloakonnpc strnpcinfo(0), getcharid(0);
 			end;
 		}
 		mes "[Albert Ford]";
@@ -2189,7 +2189,7 @@ rockrdg2,295,309,3	script	Albert Ford#rockrdg2	4_M_ALBERTFORD,{
 			setquest 7808;// Case Solved
 			rock_main_quest = 21;
 			close2;
-			cloakonnpcself();
+			cloakonnpc strnpcinfo(0), getcharid(0);
 		}
 		end;
 	}
@@ -2383,7 +2383,7 @@ rockrdg1,341,133,3	script	Mrs. Cacturon#rrrem01	4_M_CACTUSLADY,{
 			mes "I'll appreciate if you can help me every day, starting from today.";
 			mes "I'll really appreciate if you can help for a little longer. You inspire me to try harder to make a better life for my son.";
 			emotion ET_SMILE;
-			delitem 25246,5;// Juice_Package
+			delitem 25246,5;// Juice_Mix_Package
 			completequest 16078;// Peace of the Family
 			setquest 16079;// Back for More Coyotes Tomorrow
 			getitem 25250,2;// Coin_Of_Rr
@@ -2449,7 +2449,7 @@ rockrdg1,341,133,3	script	Mrs. Cacturon#rrrem01	4_M_CACTUSLADY,{
 		mes "This is the best I can do. I hope you'll like it. I'd like to thank you for your help on behalf of my family.";
 		erasequest 16080;// Hunting Coyotes Again
 		setquest 16079;// Back for More Coyotes Tomorrow
-		getitem 25250,2;// Coin_Of_Rr
+		getitem 25250,2;// Rock Ridge Coin
 		getexp 55560,52710;
 		close;
 	}
@@ -2516,7 +2516,7 @@ rockrdg1,182,124,3	script	Suspicious Sand Mound#rremef05	4_ENERGY_RED,15,15,{
 	getitem 25246,1;	// Juice_Package
 	setquest 16082;
 	completequest 16082;
-	cloakonnpcself( "Suspicious Sand Mound#rremef05" );
+	cloakonnpc "Suspicious Sand Mound#rremef05", getcharid(0);
 	if (countitem("Juice_Package") > 4) {
 		next;
 		.@name$ = strcharinfo(0);
@@ -2532,9 +2532,9 @@ rockrdg1,182,124,3	script	Suspicious Sand Mound#rremef05	4_ENERGY_RED,15,15,{
 	close;
 OnTouch:
 	if (checkquest(16078,HUNTING) != 0 && checkquest(16078,HUNTING) != 1 || countitem("Juice_Package") > 4 || isbegin_quest(16082) == 2)
-		cloakonnpcself( "Suspicious Sand Mound#rremef05" );
+		cloakonnpc "Suspicious Sand Mound#rremef05", getcharid(0);
 	else
-		cloakoffnpcself( "Suspicious Sand Mound#rremef05" );
+		cloakoffnpc "Suspicious Sand Mound#rremef05", getcharid(0);
 	end;
 OnInit:
 	cloakonnpc();
@@ -2564,7 +2564,7 @@ rockrdg1,286,247,3	script	Suspicious Sand Mound#rremef06	4_ENERGY_RED,15,15,{
 		getitem 25246,1;	// Juice_Package
 		setquest .@quest_id;
 		completequest .@quest_id;
-		cloakonnpcself( .@npc_name$ );
+		cloakonnpc .@npc_name$, getcharid(0);
 		if (countitem("Juice_Package") > 4) {
 			next;
 			.@name$ = strcharinfo(0);
@@ -2584,7 +2584,7 @@ rockrdg1,286,247,3	script	Suspicious Sand Mound#rremef06	4_ENERGY_RED,15,15,{
 	mes "- It's not usable. I'll just have to leave it and look for another one. -";
 	setquest .@quest_id;
 	completequest .@quest_id;
-	cloakonnpcself();
+	cloakonnpc strnpcinfo(0), getcharid(0);
 	close;
 
 S_Quest:
@@ -2608,9 +2608,9 @@ OnTouch:
 	.@quest_id = callsub( S_Quest );
 	.@npc_name$ = callsub( S_Name );
 	if (checkquest(16078,HUNTING) != 0 && checkquest(16078,HUNTING) != 1 || countitem("Juice_Package") > 4 || isbegin_quest(.@quest_id) == 2)
-		cloakonnpcself( .@npc_name$ );
+		cloakonnpc .@npc_name$, getcharid(0);
 	else
-		cloakoffnpcself( .@npc_name$ );
+		cloakoffnpc .@npc_name$, getcharid(0);
 	end;
 
 OnInit:
@@ -2699,10 +2699,10 @@ rockrdg1,146,164,1	script	Wasteland Cactuten#rremef01	4_ENERGY_RED,15,15,{
 			next;
 			mes "- I've got the juice mix package. -";
 		}
-		getitem 25246,1;// Juice_Package
+		getitem 25246,1;// Juice Mix Package
 		setquest 16083;// Discovered Wasteland Cactuten
 		erasequest 16083;// Discovered Wasteland Cactuten
-		cloakonnpcself( "Wasteland Cactuten#rremef01" );
+		cloakonnpc "Wasteland Cactuten#rremef01", getcharid(0);
 		if (countitem(25246) > 4) {
 			next;
 			mes "[" + .@player_name$ + "]";
@@ -2722,9 +2722,9 @@ rockrdg1,146,164,1	script	Wasteland Cactuten#rremef01	4_ENERGY_RED,15,15,{
 
 OnTouch:
 	if (isbegin_quest(16078) != 1 || countitem("Juice_Package") > 4 || isbegin_quest(16083) > 1)
-		cloakonnpcself( "Wasteland Cactuten#rremef01" );
+		cloakonnpc "Wasteland Cactuten#rremef01", getcharid(0);
 	else
-		cloakoffnpcself( "Wasteland Cactuten#rremef01" );
+		cloakoffnpc "Wasteland Cactuten#rremef01", getcharid(0);
 	end;
 
 OnInit:
@@ -2737,9 +2737,9 @@ rockrdg1,195,183,3	script	Curious Coyote#rremef03	4_ENERGY_RED,15,15,{
 	end;
 OnTouch:
 	if (isbegin_quest(16078) != 1 || countitem("Juice_Package") > 4 || isbegin_quest(16085) > 1)
-		cloakonnpcself( "Curious Coyote#rremef03" );
+		cloakonnpc "Curious Coyote#rremef03", getcharid(0);
 	else
-		cloakoffnpcself( "Curious Coyote#rremef03" );
+		cloakoffnpc "Curious Coyote#rremef03", getcharid(0);
 	end;
 OnInit:
 	cloakonnpc();
@@ -2767,10 +2767,10 @@ OnTouch:
 		mes "YIP!";
 		next;
 		mes "- Startled, the coyote scuttled backward. I moved close to check what it dropped. It's a juice mix package! -";
-		getitem 25246,1;// Juice_Package
+		getitem 25246,1;// Juice_Mix_Package
 		setquest 16085;// Discovered Coyote
 		completequest 16085;// Discovered Coyote
-		cloakonnpcself( "Curious Coyote#rremef03" );
+		cloakonnpc "Curious Coyote#rremef03", getcharid(0);
 		if (countitem(25246) > 4) {
 			next;
 			mes "[" + .@player_name$ + "]";
@@ -2840,10 +2840,10 @@ rockrdg1,305,200,3	script	Cactus Girl#rremef02	4_ENERGY_RED,15,15,{
 		mes "No. Thank you for giving it to me.";
 		next;
 		mes "- I've received the juice mix package from the Cactus girl. -";
-		getitem 25246,1;// Juice_Package
+		getitem 25246,1;// Juice_Mix_Package
 		setquest 16087;// Discovered Cactus Girl
 		completequest 16087;// Discovered Cactus Girl
-		cloakonnpcself( "Cactus Girl#rremef02" );
+		cloakonnpc "Cactus Girl#rremef02", getcharid(0);
 		if (countitem(25246) > 4) {
 			next;
 			mes "[" + .@player_name$ + "]";
@@ -2865,9 +2865,9 @@ rockrdg1,305,200,3	script	Cactus Girl#rremef02	4_ENERGY_RED,15,15,{
 
 OnTouch:
 	if (isbegin_quest(16078) != 1 || countitem("Juice_Package") > 4 || isbegin_quest(16087) > 1)
-		cloakonnpcself( "Cactus Girl#rremef02" );
+		cloakonnpc "Cactus Girl#rremef02", getcharid(0);
 	else
-		cloakoffnpcself( "Cactus Girl#rremef02" );
+		cloakoffnpc "Cactus Girl#rremef02", getcharid(0);
 	end;
 
 OnInit:
@@ -2880,9 +2880,9 @@ rockrdg1,266,219,3	script	Absorbed Coyote#rremef04	4_ENERGY_RED,15,15,{
 	end;
 OnTouch:
 	if (isbegin_quest(16078) != 1 || countitem("Juice_Package") > 4 || isbegin_quest(16088) > 1)
-		cloakonnpcself( "Absorbed Coyote#rremef04" );
+		cloakonnpc "Absorbed Coyote#rremef04", getcharid(0);
 	else
-		cloakoffnpcself( "Absorbed Coyote#rremef04" );
+		cloakoffnpc "Absorbed Coyote#rremef04", getcharid(0);
 	end;
 OnInit:
 	cloakonnpc();
@@ -2910,10 +2910,10 @@ OnTouch:
 		mes "YIP!";
 		next;
 		mes "- Startled, the coyote scuttled backward. I moved close to check what it dropped. It's a juice mix package! -";
-		getitem 25246,1;// Juice_Package
+		getitem 25246,1;// Juice_Mix_Package
 		setquest 16088;// Discovered Coyote
 		completequest 16088;// Discovered Coyote
-		cloakonnpcself( "Absorbed Coyote#rremef04" );
+		cloakonnpc "Absorbed Coyote#rremef04", getcharid(0);
 		if (countitem(25246) > 4) {
 			next;
 			mes "[" + .@player_name$ + "]";
@@ -3083,7 +3083,7 @@ rockrdg1,262,90,7	script	Crouched Horse#rr	4_M_CACTUSMAN1,{
 			mes "I know you mean well,";
 			mes "but I don't need so many.";
 		}
-		delitem 25260, .@count;// Violet_Stone_Chip
+		delitem 25260, .@count;// Fragment_of_Purple_Ore
 		erasequest 9460;// Collecting Ore Fragments
 		setquest 9461;// Enough Ores
 		getexp 25000,20000;
@@ -3219,7 +3219,7 @@ harboro1,231,254,3	script	Exotic Merchant	1_M_MERCHANT,{
 		close;
 	}
 	delitem .@item_id[.@s],5;
-	getitem 25250,2;// Coin_Of_Rr
+	getitem 25250,2;// Rock Ridge Coin
 	getexp 20000,18000;
 	setquest 12411;// Come Back Tomorrow
 	mes "[Exotic Merchant]";
@@ -3405,7 +3405,7 @@ S_Food:
 		close;
 	}
 	delitem .@item_id, .@amount;
-	getitem 25250,1;// Coin_Of_Rr
+	getitem 25250,1;// Rock Ridge Coin
 	getexp 16000,12800;
 	erasequest getarg(0);
 	setquest 12382;// Distributing Food
@@ -3649,7 +3649,7 @@ harboro1,357,155,3	script	Steel Vigilante#1	4_M_MASKMAN,{
 		.@mob_id = 3788;
 		break;
 	}
-	getitem 25250,2;// Coin_Of_Rr
+	getitem 25250,2;// Rock Ridge Coin
 	erasequest .@quest_id;
 	setquest 12390;// Relieved for Now
 	mes "[Steel Vigilante]";
@@ -3674,7 +3674,7 @@ harboro1,357,152,3	script	Steel Vigilante#2	4_M_ACROSS,{
 		mes "^0000ffYou must be Level 140 or above to receive this quest.^000000";
 		close;
 	}
-	if (isbegin_quest(12389) != 2) {
+	if (isbegin_quest(12389) == 2) {
 		mes "[Steel Vigilante]";
 		mes "Mm? You're not one of us. If you need a job, then you should look elsewhere.";
 		close;
@@ -3785,7 +3785,7 @@ harboro1,357,152,3	script	Steel Vigilante#2	4_M_ACROSS,{
 		.@mob_id = 3740;
 		break;
 	}
-	getitem 25250,3;// Coin_Of_Rr
+	getitem 25250,3;// Rock Ridge Coin
 	erasequest .@quest_id;
 	setquest 12398;// You're Good
 	mes "[Steel Vigilante]";
@@ -4001,7 +4001,7 @@ harboro1,334,135,6	script	Desalination Facility Manager	4_M_YURI,{
 		close;
 	}
 	getexp 35000,27000;
-	getitem 25250,2;// Coin_Of_Rr
+	getitem 25250,2;// Rock Ridge Coin
 	for ( .@quest_id = 12405; .@quest_id <= 12409; .@quest_id++ )
 		erasequest .@quest_id;
 	setquest 12404;// Are You Not Tired?
@@ -4259,7 +4259,7 @@ harboro1,138,157,5	script	Donovan	4_M_EINMAN2,{
 		erasequest 9458;// Pipe Cleaning
 		setquest 9459;// Too Early for Pipe Cleaning
 		getexp 25000,20000;
-		getitem 25250,1;// Coin_Of_Rr
+		getitem 25250,1;// Rock Ridge Coin
 		close;
 	}
 }
@@ -4723,11 +4723,11 @@ harboro2,164,80,5	script	Demon#srdg01	4_M_NFMAN,{
 		next;
 		mes "[Demon]";
 		mes "Go rest today and come back tomorrow in the morning. See ya!";
-		delitem 25277, countitem(25277);// DeadlyPoisonPowder
-		delitem 6213, countitem(6213);// Explosive_Powder
+		delitem 25277, countitem(25277);// Deadly Poison Powder
+		delitem 6213, countitem(6213);// Explosive Powder
 		erasequest 14672;// Preparing for the Firework Festival
 		setquest 14673;// Time to Make Bombs
-		getitem 25250,3;// Coin_Of_Rr
+		getitem 25250,3;// Rock Ridge Coin
 		getexp 76200,70740;
 		close;
 	}
@@ -5006,7 +5006,7 @@ harboro1,347,65,3	script	Mrs. McPhy#rockdaily	1_F_MERCHANT_02,{
 		mes "That Rock Ridge Coin is yours. Thank you for helping us.";
 		erasequest 1330;// Spotty's Holes
 		completequest 1322;// Found Something
-		getitem 25250,1;// Coin_Of_Rr
+		getitem 25250,1;// Rock Ridge Coin
 		setquest 1329;// Spotty in the Dreamland
 		next;
 		mes "[Mrs. McPhy]";
@@ -5031,7 +5031,7 @@ harboro1,347,65,3	script	Mrs. McPhy#rockdaily	1_F_MERCHANT_02,{
 		mes "Here's the Rock Ridge Coin we promised. Thank you for searching the wasteland for us.";
 		erasequest 1328;// Found Missing Items
 		erasequest 1330;// Spotty's Holes
-		getitem 25250,1;// Coin_Of_Rr
+		getitem 25250,1;// Rock Ridge Coin
 		setquest 1329;// Spotty in the Dreamland
 		next;
 		mes "[Mrs. McPhy]";
@@ -5162,16 +5162,16 @@ rockrdg1,36,250,5	script	Mr. McPhy#rkdlout	4W_M_02,{
 			next;
 			mes "[Mr. McPhy]";
 			mes "But he couldn't have gone too far because he came back to me pretty quickly. Why don't you walk along the fence and look for holes with white hair floating around them?";
-			cloakoffnpcself( "#rkq1321" );
-			cloakoffnpcself( "#rkdqgd11" );
-			cloakoffnpcself( "#rkdqgd22" );
-			cloakoffnpcself( "#rkdqgd33" );
+			cloakoffnpc "#rkq1321", getcharid(0);
+			cloakoffnpc "#rkdqgd11", getcharid(0);
+			cloakoffnpc "#rkdqgd22", getcharid(0);
+			cloakoffnpc "#rkdqgd33", getcharid(0);
 			close;
 		}
 		if (isbegin_quest(1322) == 1 || isbegin_quest(1328) == 1) {
 			mes "[Mr. McPhy]";
 			mes "Did you find something? Then let's go back!";
-			cloakonnpcself( "Mr. McPhy#rkdlout" );
+			cloakonnpc "Mr. McPhy#rkdlout", getcharid(0);
 			close;
 		}
 		mes "[Mr. McPhy]";
@@ -5179,15 +5179,15 @@ rockrdg1,36,250,5	script	Mr. McPhy#rkdlout	4W_M_02,{
 		next;
 		mes "[Mr. McPhy]";
 		mes "Oh, right! Spotty has been shedding a lot lately. Maybe you should look for holes with white hair floating around them.";
-		cloakoffnpcself( "#rkq1321" );
-		cloakoffnpcself( "#rkq1323" );
-		cloakoffnpcself( "#rkq1324" );
-		cloakoffnpcself( "#rkq1325" );
-		cloakoffnpcself( "#rkq1326" );
-		cloakoffnpcself( "#rkq1327" );
-		cloakoffnpcself( "#rkdqgd11" );
-		cloakoffnpcself( "#rkdqgd22" );
-		cloakoffnpcself( "#rkdqgd33" );
+		cloakoffnpc "#rkq1321", getcharid(0);
+		cloakoffnpc "#rkq1323", getcharid(0);
+		cloakoffnpc "#rkq1324", getcharid(0);
+		cloakoffnpc "#rkq1325", getcharid(0);
+		cloakoffnpc "#rkq1326", getcharid(0);
+		cloakoffnpc "#rkq1327", getcharid(0);
+		cloakoffnpc "#rkdqgd11", getcharid(0);
+		cloakoffnpc "#rkdqgd22", getcharid(0);
+		cloakoffnpc "#rkdqgd33", getcharid(0);
 		next;
 		mes "[Mr. McPhy]";
 		mes "And he doesn't seem to venture out too far. It's probably because he's still young. I've marked three possible locations in the middle of your map. You don't have to look further than those locations.";
@@ -5209,7 +5209,7 @@ rockrdg1,36,250,5	script	Mr. McPhy#rkdlout	4W_M_02,{
 	}
 	mes "[Mr. McPhy]";
 	mes "*Gasp* Buffalo Bandits!";
-	cloakonnpcself( "Mr. McPhy#rkdlout" );
+	cloakonnpc "Mr. McPhy#rkdlout", getcharid(0);
 	close;
 
 OnInit:
@@ -5274,10 +5274,10 @@ rockrdg1,43,145,3	script	Hole#rkq1321	4_CRACK,{
 			mes "I should take it with me for now. -";
 			completequest 1321;
 			setquest 1322;// Found Something
-			cloakonnpcself( "#rkq1321" );
-			cloakonnpcself( "#rkdqgd11" );
-			cloakonnpcself( "#rkdqgd22" );
-			cloakonnpcself( "#rkdqgd33" );
+			cloakonnpc "#rkq1321", getcharid(0);
+			cloakonnpc "#rkdqgd11", getcharid(0);
+			cloakonnpc "#rkdqgd22", getcharid(0);
+			cloakonnpc "#rkdqgd33", getcharid(0);
 			close;
 		}
 		mes "It has something inside it. -";
@@ -5285,15 +5285,15 @@ rockrdg1,43,145,3	script	Hole#rkq1321	4_CRACK,{
 		mes "- This must be what Mr. McPhy is looking for. I should bring it to her. -";
 		erasequest .@list[.@i];
 		setquest 1328;// Found Missing Items
-		cloakonnpcself( "#rkq1321" );
-		cloakonnpcself( "#rkq1323" );
-		cloakonnpcself( "#rkq1324" );
-		cloakonnpcself( "#rkq1325" );
-		cloakonnpcself( "#rkq1326" );
-		cloakonnpcself( "#rkq1327" );
-		cloakonnpcself( "#rkdqgd11" );
-		cloakonnpcself( "#rkdqgd22" );
-		cloakonnpcself( "#rkdqgd33" );
+		cloakonnpc "#rkq1321", getcharid(0);
+		cloakonnpc "#rkq1323", getcharid(0);
+		cloakonnpc "#rkq1324", getcharid(0);
+		cloakonnpc "#rkq1325", getcharid(0);
+		cloakonnpc "#rkq1326", getcharid(0);
+		cloakonnpc "#rkq1327", getcharid(0);
+		cloakonnpc "#rkdqgd11", getcharid(0);
+		cloakonnpc "#rkdqgd22", getcharid(0);
+		cloakonnpc "#rkdqgd33", getcharid(0);
 		close;
 	}
 	switch( .@list[.@i] ) {
@@ -5385,7 +5385,7 @@ harboro1,344,61,5	script	Mr. McPhy#rockdaily	4W_M_02,{
 		mes "[Mr. McPhy]";
 		mes "Since you brought back my wife's gold ring, I've been taking odd jobs to supplement our income. We can afford to repay you now.";
 		next;
-		if (select( "Help him.", "Decline." ) == 2) {
+		if (select("Help him.", "Decline." ) == 2) {
 			mes "[Mr. McPhy]";
 			mes "You're not afraid of the bandits, are you?";
 			mes "Okay, I understand if you can't help us.";
@@ -5432,7 +5432,7 @@ harboro1,344,61,5	script	Mr. McPhy#rockdaily	4W_M_02,{
 			mes "Oh, right?here's your payment I promised. Thank you.";
 			erasequest 1331;
 			setquest 1332;
-			getitem 25250,2;// Coin_Of_Rr
+			getitem 25250,2;// Rock Ridge Coin
 			getexp 14499,13863;
 			close;
 		}
@@ -7039,7 +7039,7 @@ harboro1,1,1,3	script	Manager#1	CLEAR_NPC,3,0,{
 	if (.@equip_id == -1)
 		end;
 
-	if (.@equip_id != getiteminfo("Amesha_Spenta", ITEMINFO_ID)) {
+	if (.@equip_id != getiteminfo("Amesha_Spenta", ITEMINFO_ID)) {	// wtf is that part ?
 		mes "^0000ff[Carrying Limit Helper]^000000";
 		mes "^0000ffDo you want to delete all the equipment this character is wearing?^000000";
 		mes "^0000ffPPL Removal version.^000000";
