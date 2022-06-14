@@ -26,18 +26,21 @@ struct homun_data;
 struct skill_unit;
 struct s_skill_unit_group;
 struct status_change_entry;
-extern bool damage_flag; //Night Watch Skill
+struct status_change;
 
 #define MAX_SKILL_PRODUCE_DB	300 /// Max Produce DB
 #define MAX_PRODUCE_RESOURCE	12 /// Max Produce requirements
 #define MAX_SKILL_LEVEL 13 /// Max Skill Level (for skill_db storage)
 #define MAX_MOBSKILL_LEVEL 100	/// Max monster skill level (on skill usage)
 #define MAX_SKILL_CRIMSON_MARKER 3 /// Max Crimson Marker targets (RL_C_MARKER)
-#define SKILL_NAME_LENGTH 31 /// Max Skill Name length
-#define SKILL_DESC_LENGTH 31 /// Max Skill Desc length
+#define SKILL_NAME_LENGTH 40 /// Max Skill Name length
+#define SKILL_DESC_LENGTH 40 /// Max Skill Desc length
 
 /// Used with tracking the hitcount of Earthquake for skills that can avoid the first attack
 #define NPC_EARTHQUAKE_FLAG 0x800
+
+/// To control alternative skill scalings [Muh]
+#define SKILL_ALTDMG_FLAG 0x10
 
 /// Constants to identify a skill's nk value (damage properties)
 /// The NK value applies only to non INF_GROUND_SKILL skills
@@ -108,6 +111,8 @@ enum e_skill_inf2 : uint8 {
 	INF2_IGNOREAUTOGUARD , // Skill is not blocked by SC_AUTOGUARD (physical-skill only)
 	INF2_IGNORECICADA, // Skill is not blocked by SC_UTSUSEMI or SC_BUNSINJYUTSU (physical-skill only)
 	INF2_SHOWSCALE, // Skill shows AoE area while casting
+	INF2_IGNOREGTB, // Skill ignores effect of GTB
+	INF2_TOGGLEABLE, // Skill can be toggled on and off (won't consume HP/SP when toggled off)
 	INF2_MAX,
 };
 
@@ -244,11 +249,6 @@ struct s_skill_copyable { // [Cydh]
 	uint16 req_opt;
 };
 
-/// Skill Reading Spellbook structure.
-struct s_skill_spellbook {
-	uint16 nameid, point;
-};
-
 /// Database skills
 struct s_skill_db {
 	uint16 nameid;								///< Skill ID
@@ -304,19 +304,18 @@ struct s_skill_db {
 	struct s_skill_copyable copyable;
 
 	int32 abra_probability[MAX_SKILL_LEVEL];
-	s_skill_spellbook reading_spellbook;
 	uint16 improvisedsong_rate;
+	sc_type sc;									///< Default SC for skill
 };
 
 class SkillDatabase : public TypesafeCachedYamlDatabase <uint16, s_skill_db> {
 private:
 	/// Skill ID to Index lookup: skill_index = skill_get_index(skill_id) - [FWI] 20160423 the whole index thing should be removed.
-	uint16 id2idx[UINT16_MAX + 1];
-	uint16 idx2id[UINT16_MAX + 1];
+	uint16 skilldb_id2idx[(UINT16_MAX + 1)];
 	/// Skill count, also as last index
 	uint16 skill_num;
 
-	template<typename T, size_t S> bool parseNode(std::string nodeName, std::string subNodeName, YAML::Node node, T(&arr)[S]);
+	template<typename T, size_t S> bool parseNode(const std::string& nodeName, const std::string& subNodeName, const ryml::NodeRef& node, T(&arr)[S]);
 
 public:
 	SkillDatabase() : TypesafeCachedYamlDatabase("SKILL_DB", 3, 1) {
@@ -324,13 +323,12 @@ public:
 	}
 
 	const std::string getDefaultLocation() override;
-	uint64 parseBodyNode(const YAML::Node &node) override;
+	uint64 parseBodyNode(const ryml::NodeRef& node) override;
 	void clear() override;
 	void loadingFinished() override;
 
 	// Additional
 	uint16 get_index( uint16 skill_id, bool silent, const char* func, const char* file, int line );
-	uint16 get_id( uint16 skill_idx );
 };
 
 extern SkillDatabase skill_db;
@@ -467,7 +465,7 @@ public:
 	}
 
 	const std::string getDefaultLocation() override;
-	uint64 parseBodyNode(const YAML::Node& node) override;
+	uint64 parseBodyNode(const ryml::NodeRef& node) override;
 };
 
 extern SkillArrowDatabase skill_arrow_db;
@@ -485,21 +483,7 @@ public:
 	}
 
 	const std::string getDefaultLocation() override;
-	uint64 parseBodyNode(const YAML::Node& node) override;
-};
-
-struct s_skill_improvise_db {
-	uint16 skill_id, per;
-};
-
-class ImprovisedSongDatabase : public TypesafeYamlDatabase<uint16, s_skill_improvise_db> {
-public:
-	ImprovisedSongDatabase() : TypesafeYamlDatabase("IMPROVISED_SONG_DB", 1) {
-
-	}
-
-	const std::string getDefaultLocation() override;
-	uint64 parseBodyNode(const YAML::Node& node) override;
+	uint64 parseBodyNode(const ryml::NodeRef& node) override;
 };
 
 void do_init_skill(void);
@@ -606,14 +590,15 @@ int skill_vfcastfix(struct block_list *bl, double time, uint16 skill_id, uint16 
 #endif
 int skill_delayfix(struct block_list *bl, uint16 skill_id, uint16 skill_lv);
 void skill_toggle_magicpower(struct block_list *bl, uint16 skill_id);
-
+//Check sc of bl [Muh]
+int skill_check_bl_sc(struct block_list *target, va_list ap);
 // Skill conditions check and remove [Inkfish]
 bool skill_check_condition_castbegin(struct map_session_data *sd, uint16 skill_id, uint16 skill_lv);
 bool skill_check_condition_castend(struct map_session_data *sd, uint16 skill_id, uint16 skill_lv);
 int skill_check_condition_char_sub (struct block_list *bl, va_list ap);
 void skill_consume_requirement(struct map_session_data *sd, uint16 skill_id, uint16 skill_lv, short type);
 struct s_skill_condition skill_get_requirement(struct map_session_data *sd, uint16 skill_id, uint16 skill_lv);
-int skill_disable_check(struct status_change *sc, uint16 skill_id);
+bool skill_disable_check(status_change &sc, uint16 skill_id);
 bool skill_pos_maxcount_check(struct block_list *src, int16 x, int16 y, uint16 skill_id, uint16 skill_lv, enum bl_type type, bool display_failure);
 
 int skill_check_pc_partner(struct map_session_data *sd, uint16 skill_id, uint16 *skill_lv, int range, int cast_flag);
@@ -632,7 +617,6 @@ int skill_calc_heal(struct block_list *src, struct block_list *target, uint16 sk
 bool skill_check_cloaking(struct block_list *bl, struct status_change_entry *sce);
 
 // Abnormal status
-void skill_enchant_elemental_end(struct block_list *bl, int type);
 bool skill_isNotOk(uint16 skill_id, struct map_session_data *sd);
 bool skill_isNotOk_hom(struct homun_data *hd, uint16 skill_id, uint16 skill_lv);
 bool skill_isNotOk_mercenary(uint16 skill_id, s_mercenary_data *md);
@@ -2219,7 +2203,7 @@ enum e_skill {
 	NW_THE_VIGILANTE_AT_NIGHT,
 	NW_ONLY_ONE_BULLET,
 	NW_SPIRAL_SHOOTING,
-	NW_MAGAZINE_FOR_ONE,	
+	NW_MAGAZINE_FOR_ONE,
 	NW_WILD_FIRE,
 	NW_BASIC_GRENADE,
 	NW_HASTY_FIRE_IN_THE_HOLE,
@@ -2228,8 +2212,101 @@ enum e_skill {
 	NW_HIDDEN_CARD,
 	NW_MISSION_BOMBARD,
 
-	NW_THE_VIGILANTE_AT_NIGHT_GUN_GATLING = 5496,
+	SOA_TALISMAN_MASTERY,
+	SOA_SOUL_MASTERY,
+	SOA_TALISMAN_OF_PROTECTION,
+	SOA_TALISMAN_OF_WARRIOR,
+	SOA_TALISMAN_OF_MAGICIAN,
+	SOA_SOUL_GATHERING,
+	SOA_TOTEM_OF_TUTELARY,
+	SOA_TALISMAN_OF_FIVE_ELEMENTS,
+	SOA_TALISMAN_OF_SOUL_STEALING,
+	SOA_EXORCISM_OF_MALICIOUS_SOUL,
+	SOA_TALISMAN_OF_BLUE_DRAGON,
+	SOA_TALISMAN_OF_WHITE_TIGER,
+	SOA_TALISMAN_OF_RED_PHOENIX,
+	SOA_TALISMAN_OF_BLACK_TORTOISE,
+	SOA_TALISMAN_OF_FOUR_BEARING_GOD,
+	SOA_CIRCLE_OF_DIRECTIONS_AND_ELEMENTALS,
+	SOA_SOUL_OF_HEAVEN_AND_EARTH,
+
+	SH_MYSTICAL_CREATURE_MASTERY,
+	SH_COMMUNE_WITH_CHUL_HO,
+	SH_CHUL_HO_SONIC_CLAW,
+	SH_HOWLING_OF_CHUL_HO,
+	SH_HOGOGONG_STRIKE,
+	SH_COMMUNE_WITH_KI_SUL,
+	SH_KI_SUL_WATER_SPRAYING,
+	SH_MARINE_FESTIVAL_OF_KI_SUL,
+	SH_SANDY_FESTIVAL_OF_KI_SUL,
+	SH_KI_SUL_RAMPAGE,
+	SH_COMMUNE_WITH_HYUN_ROK,
+	SH_COLORS_OF_HYUN_ROK,
+	SH_HYUN_ROKS_BREEZE,
+	SH_HYUN_ROK_CANNON,
+	SH_TEMPORARY_COMMUNION,
+	SH_BLESSING_OF_MYSTICAL_CREATURES,
+
+	HN_SELFSTUDY_TATICS,
+	HN_SELFSTUDY_SOCERY,
+	HN_DOUBLEBOWLINGBASH,
+	HN_MEGA_SONIC_BLOW,
+	HN_SHIELD_CHAIN_RUSH,
+	HN_SPIRAL_PIERCE_MAX,
+	HN_METEOR_STORM_BUSTER,
+	HN_JUPITEL_THUNDER_STORM,
+	HN_JACK_FROST_NOVA,
+	HN_HELLS_DRIVE,
+	HN_GROUND_GRAVITATION,
+	HN_NAPALM_VULCAN_STRIKE,
+	HN_BREAKINGLIMIT,
+	HN_RULEBREAK,
+
+	SKE_SKY_MASTERY,
+	SKE_WAR_BOOK_MASTERY,
+	SKE_RISING_SUN,
+	SKE_NOON_BLAST,
+	SKE_SUNSET_BLAST,
+	SKE_RISING_MOON,
+	SKE_MIDNIGHT_KICK,
+	SKE_DAWN_BREAK,
+	SKE_TWINKLING_GALAXY,
+	SKE_STAR_BURST,
+	SKE_STAR_CANNON,
+	SKE_ALL_IN_THE_SKY,
+	SKE_ENCHANTING_SKY,
+
+	SS_TOKEDASU,
+	SS_SHIMIRU,
+	SS_AKUMUKESU,
+	SS_SHINKIROU,
+	SS_KAGEGARI,
+	SS_KAGENOMAI,
+	SS_KAGEGISSEN,
+	SS_FUUMASHOUAKU,
+	SS_FUUMAKOUCHIKU,
+	SS_KUNAIWAIKYOKU,
+	SS_KUNAIKAITEN,
+	SS_KUNAIKUSSETSU,
+	SS_SEKIENHOU,
+	SS_REIKETSUHOU,
+	SS_RAIDENPOU,
+	SS_KINRYUUHOU,
+	SS_ANTENPOU,
+	SS_KAGEAKUMU,
+	SS_HITOUAKUMU,
+	SS_ANKOKURYUUAKUMU,
+
+	NW_THE_VIGILANTE_AT_NIGHT_GUN_GATLING,
 	NW_THE_VIGILANTE_AT_NIGHT_GUN_SHOTGUN,
+	SS_FUUMAKOUCHIKU_BLASTING,
+
+	DK_DRAGONIC_BREATH = 6001,
+	MT_SPARK_BLASTER,
+	MT_TRIPLE_LASER,
+	MT_MIGHTY_SMASH,
+	BO_EXPLOSIVE_POWDER,
+	BO_MAYHEMIC_THORNS,
 
 	HLIF_HEAL = 8001,
 	HLIF_AVOID,
@@ -2274,6 +2351,22 @@ enum e_skill {
 	MH_LAVA_SLIDE,
 	MH_PYROCLASTIC,
 	MH_VOLCANIC_ASH,
+	MH_BLAST_FORGE,
+	MH_TEMPERING,
+	MH_CLASSY_FLUTTER,
+	MH_TWISTER_CUTTER,
+	MH_ABSOLUTE_ZEPHYR,
+	MH_BRUSHUP_CLAW,
+	MH_BLAZING_AND_FURIOUS,
+	MH_THE_ONE_FIGHTER_RISES,
+	MH_POLISHING_NEEDLE,
+	MH_TOXIN_OF_MANDARA,
+	MH_NEEDLE_STINGER,
+	MH_LICHT_GEHORN,
+	MH_GLANZEN_SPIES,
+	MH_HEILIGE_PFERD,
+	MH_GOLDENE_TONE,
+	MH_BLAZING_LAVA,
 
 	MS_BASH = 8201,
 	MS_MAGNUM,
@@ -2530,8 +2623,8 @@ enum e_skill_unit_id : uint16 {
 
 	UNT_RAIN_OF_CRYSTAL,
 	UNT_MYSTERY_ILLUSION,
-	UNT_UNKNOWN_1,// No idea. Makes a old style plant appear for a second.
-	UNT_STRANTUM_TREMOR,
+
+	UNT_STRANTUM_TREMOR = 269,
 	UNT_VIOLENT_QUAKE,
 	UNT_ALL_BLOOM,
 	UNT_TORNADO_STORM,
@@ -2547,10 +2640,23 @@ enum e_skill_unit_id : uint16 {
 	UNT_LIGHTNING_LAND,
 	UNT_VENOM_SWAMP,
 	UNT_CONFLAGRATION,
+	UNT_CANE_OF_EVIL_EYE,
+	UNT_TWINKLING_GALAXY,
+	UNT_STAR_CANNON,
+	UNT_GRENADES_DROPPING,
+	UNT_UNKNOWN_2,// Shows Nothing
+	UNT_FUUMASHOUAKU,// Huuma Shuriken - Grasp
+	UNT_MISSION_BOMBARD,
+	UNT_TOTEM_OF_TUTELARY,
+	UNT_HYUN_ROKS_BREEZE,
+	UNT_SHINKIROU,// Mirage
+	UNT_JACK_FROST_NOVA,
+	UNT_GROUND_GRAVITATION,
+	UNT_KUNAIKAITEN,// Shows Nothing
+	UNT_KUNAIWAIKYOKU,// Kunai - Distortion
 
-	UNT_GRENADES_DROPPING = 288,
-	UNT_MISSION_BOMBARD = 291,
-
+	UNT_STAR_BURST = 2409,
+	
 	// Skill units outside the normal unit range.
 	UNT_DEEPBLINDTRAP = 20852,
 	UNT_SOLIDTRAP,
@@ -2596,7 +2702,7 @@ public:
 	}
 
 	const std::string getDefaultLocation() override;
-	uint64 parseBodyNode(const YAML::Node& node) override;
+	uint64 parseBodyNode(const ryml::NodeRef& node) override;
 
 	// Additional
 	std::shared_ptr<s_skill_spellbook_db> findBook(t_itemid nameid);
@@ -2604,7 +2710,7 @@ public:
 
 extern ReadingSpellbookDatabase reading_spellbook_db;
 
-void skill_spellbook(struct map_session_data *sd, t_itemid nameid);
+void skill_spellbook(map_session_data &sd, t_itemid nameid);
 
 int skill_block_check(struct block_list *bl, enum sc_type type, uint16 skill_id);
 
@@ -2619,7 +2725,7 @@ public:
 	}
 
 	const std::string getDefaultLocation() override;
-	uint64 parseBodyNode(const YAML::Node &node) override;
+	uint64 parseBodyNode(const ryml::NodeRef& node) override;
 };
 
 extern MagicMushroomDatabase magic_mushroom_db;
@@ -2658,9 +2764,10 @@ int skill_is_combo(uint16 skill_id);
 void skill_combo_toggle_inf(struct block_list* bl, uint16 skill_id, int inf);
 void skill_combo(struct block_list* src,struct block_list *dsrc, struct block_list *bl, uint16 skill_id, uint16 skill_lv, t_tick tick);
 
+enum sc_type skill_get_sc(int16 skill_id);
 void skill_reveal_trap_inarea(struct block_list *src, int range, int x, int y);
 int skill_get_time3(struct map_data *mapdata, uint16 skill_id, uint16 skill_lv);
-
+int skill_area_sub(struct block_list *bl, va_list ap);
 /// Variable name of copied skill by Plagiarism
 #define SKILL_VAR_PLAGIARISM "CLONE_SKILL"
 /// Variable name of copied skill level by Plagiarism
